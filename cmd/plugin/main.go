@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2026 The plugin-template Authors
+// SPDX-FileCopyrightText: 2026 The semrel Authors
 
 package main
 
@@ -8,12 +8,12 @@ import (
 	"log"
 	"os"
 
-	grpcserver "github.com/SemRels/plugin-template/internal/grpc"
-	semrelplugin "github.com/SemRels/plugin-template/internal/plugin"
+	grpcserver "github.com/SemRels/hook-jira/internal/grpc"
+	semrelplugin "github.com/SemRels/hook-jira/internal/plugin"
 )
 
 func main() {
-	provider := semrelplugin.NewProvider("replace-me")
+	provider := semrelplugin.NewJiraHookFromEnv()
 	server := grpcserver.NewProviderServer(provider)
 
 	if _, err := server.Health(context.Background()); err != nil {
@@ -21,5 +21,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Printf("%s plugin template is ready", provider.Name())
+	log.Printf("%s plugin is ready", provider.Name())
 }
