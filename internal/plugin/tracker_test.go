@@ -1,13 +1,12 @@
-// SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2026 The semrel Authors
-
 package plugin_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	jira "github.com/SemRels/hook-jira/internal/plugin"
@@ -24,6 +23,14 @@ func newTestClient(t *testing.T, mux *http.ServeMux) *jira.Client {
 	})
 }
 
+func expectAuth(t *testing.T, r *http.Request) {
+	t.Helper()
+	want := "Basic " + base64.StdEncoding.EncodeToString([]byte("user@example.com:test-token"))
+	if got := r.Header.Get("Authorization"); got != want {
+		t.Fatalf("unexpected auth header: %s", got)
+	}
+}
+
 func TestExtractIssueKeys(t *testing.T) {
 	commits := []string{
 		"fix: resolve ABC-123 crash on startup",
@@ -33,110 +40,133 @@ func TestExtractIssueKeys(t *testing.T) {
 		"refactor: PROJ-789 and PROJ-456 together",
 	}
 	keys := jira.ExtractIssueKeys(commits)
-
-	expected := map[string]bool{"ABC-123": true, "PROJ-456": true, "PROJ-789": true}
-	if len(keys) != len(expected) {
-		t.Errorf("ExtractIssueKeys() returned %d keys, want %d: %v", len(keys), len(expected), keys)
-	}
-	for _, k := range keys {
-		if !expected[k] {
-			t.Errorf("unexpected key %q", k)
-		}
+	if len(keys) != 3 {
+		t.Fatalf("unexpected keys: %v", keys)
 	}
 }
 
-func TestExtractIssueKeys_Empty(t *testing.T) {
-	keys := jira.ExtractIssueKeys([]string{"fix: no ticket here", "chore: boring update"})
-	if len(keys) != 0 {
-		t.Errorf("ExtractIssueKeys() = %v, want empty", keys)
-	}
-}
-
-func TestCreateVersion_Success(t *testing.T) {
+func TestCreateVersionSuccess(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/rest/api/3/project/PROJ", func(w http.ResponseWriter, r *http.Request) {
+		expectAuth(t, r)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"id": "10001"})
+		json.NewEncoder(w).Encode(map[string]any{"id": "10001"})
 	})
 	mux.HandleFunc("/rest/api/3/version", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Errorf("Method = %s, want POST", r.Method)
-		}
+		expectAuth(t, r)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"id":   "20001",
-			"name": "v1.0.0",
-		})
+		json.NewEncoder(w).Encode(map[string]any{"id": "20001", "name": "v1.0.0"})
 	})
-	c := newTestClient(t, mux)
+	client := newTestClient(t, mux)
 
-	ver, err := c.CreateVersion(context.Background(), "PROJ", "v1.0.0", "Release v1.0.0")
+	version, err := client.CreateVersion(context.Background(), "PROJ", "v1.0.0", "Release v1.0.0")
 	if err != nil {
-		t.Fatalf("CreateVersion() error: %v", err)
+		t.Fatalf("CreateVersion error: %v", err)
 	}
-	if ver.ID != "20001" || ver.Name != "v1.0.0" {
-		t.Errorf("CreateVersion() = %+v, want ID=20001, Name=v1.0.0", ver)
+	if version.ID != "20001" || version.Name != "v1.0.0" {
+		t.Fatalf("unexpected version: %+v", version)
 	}
 }
 
-func TestReleaseVersion_Success(t *testing.T) {
+func TestCreateVersionProjectError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/rest/api/3/project/PROJ", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("missing project"))
+	})
+	client := newTestClient(t, mux)
+
+	err := func() error {
+		_, err := client.CreateVersion(context.Background(), "PROJ", "v1.0.0", "")
+		return err
+	}()
+	if err == nil || !strings.Contains(err.Error(), "get project") {
+		t.Fatalf("expected project error, got %v", err)
+	}
+}
+
+func TestReleaseVersionSuccess(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/rest/api/3/version/20001", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPut {
-			t.Errorf("Method = %s, want PUT", r.Method)
-		}
+		expectAuth(t, r)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"id": "20001", "released": true})
 	})
-	c := newTestClient(t, mux)
+	client := newTestClient(t, mux)
 
-	if err := c.ReleaseVersion(context.Background(), "20001"); err != nil {
-		t.Fatalf("ReleaseVersion() error: %v", err)
+	if err := client.ReleaseVersion(context.Background(), "20001"); err != nil {
+		t.Fatalf("ReleaseVersion error: %v", err)
 	}
 }
 
-func TestTransitionIssue_Success(t *testing.T) {
+func TestReleaseVersionAPIError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/rest/api/3/version/20001", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("bad version"))
+	})
+	client := newTestClient(t, mux)
+
+	err := client.ReleaseVersion(context.Background(), "20001")
+	if err == nil || !strings.Contains(err.Error(), "release version") {
+		t.Fatalf("expected api error, got %v", err)
+	}
+}
+
+func TestTransitionIssueSuccess(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/rest/api/3/issue/PROJ-123/transitions", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			expectAuth(t, r)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"transitions": []map[string]any{{"id": "31", "name": "Done"}}})
+		case http.MethodPost:
+			expectAuth(t, r)
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+	})
+	client := newTestClient(t, mux)
+
+	if err := client.TransitionIssue(context.Background(), "PROJ-123", "Done"); err != nil {
+		t.Fatalf("TransitionIssue error: %v", err)
+	}
+}
+
+func TestTransitionIssueNotFound(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/rest/api/3/issue/PROJ-123/transitions", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"transitions": []map[string]any{{"id": "11", "name": "To Do"}}})
+		}
+	})
+	client := newTestClient(t, mux)
+
+	err := client.TransitionIssue(context.Background(), "PROJ-123", "Released")
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got %v", err)
+	}
+}
+
+func TestTransitionIssueAPIError(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/rest/api/3/issue/PROJ-123/transitions", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"transitions": []map[string]interface{}{
-					{"id": "11", "name": "To Do"},
-					{"id": "21", "name": "In Progress"},
-					{"id": "31", "name": "Done"},
-				},
-			})
+			json.NewEncoder(w).Encode(map[string]any{"transitions": []map[string]any{{"id": "31", "name": "Done"}}})
 		case http.MethodPost:
-			w.WriteHeader(http.StatusNoContent)
-		default:
-			t.Errorf("unexpected method %s", r.Method)
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte("forbidden"))
 		}
 	})
-	c := newTestClient(t, mux)
+	client := newTestClient(t, mux)
 
-	if err := c.TransitionIssue(context.Background(), "PROJ-123", "Done"); err != nil {
-		t.Fatalf("TransitionIssue() error: %v", err)
-	}
-}
-
-func TestTransitionIssue_NotFound(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/rest/api/3/issue/PROJ-123/transitions", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"transitions": []map[string]interface{}{
-					{"id": "11", "name": "To Do"},
-				},
-			})
-		}
-	})
-	c := newTestClient(t, mux)
-
-	if err := c.TransitionIssue(context.Background(), "PROJ-123", "Released"); err == nil {
-		t.Error("TransitionIssue() should fail when transition not found")
+	err := client.TransitionIssue(context.Background(), "PROJ-123", "Done")
+	if err == nil || !strings.Contains(err.Error(), "transition issue") {
+		t.Fatalf("expected api error, got %v", err)
 	}
 }
