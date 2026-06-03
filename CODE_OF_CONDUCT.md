@@ -1,6 +1,6 @@
 # Code of Conduct
 
-{{PROJECT_NAME}} is committed to providing a welcoming and harassment-free community.
+hook-jira is committed to providing a welcoming and harassment-free community.
 
 ## Our Pledge
 
