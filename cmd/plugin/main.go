@@ -10,6 +10,8 @@ import (
 	plugin "github.com/SemRels/hook-jira/internal/plugin"
 )
 
+const pluginSchemaVersion = 1
+
 type jiraClient interface {
 	CreateVersion(context.Context, string, string, string) (*plugin.Version, error)
 	ReleaseVersion(context.Context, string) error
@@ -21,6 +23,7 @@ var newClient = func(cfg plugin.Config) jiraClient {
 }
 
 func run(ctx context.Context, getenv func(string) string, stderr io.Writer) int {
+	fmt.Fprintf(stderr, "plugin_schema_version=%d\n", pluginSchemaVersion)
 	baseURL := getenv("SEMREL_PLUGIN_BASE_URL")
 	email := getenv("SEMREL_PLUGIN_EMAIL")
 	apiToken := getenv("SEMREL_PLUGIN_API_TOKEN")

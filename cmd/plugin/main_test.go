@@ -66,7 +66,7 @@ func TestRunSuccess(t *testing.T) {
 		"SEMREL_CHANGELOG":              "fix: PROJ-123\nfeat: PROJ-456",
 	}), &stderr)
 
-	if code != 0 || stderr.Len() != 0 {
+	if code != 0 || stderr.String() != "plugin_schema_version=1\n" {
 		t.Fatalf("unexpected result: code=%d stderr=%q", code, stderr.String())
 	}
 	if fake.createdProject != "PROJ" || fake.createdVersion != "v1.2.3" || fake.releasedID != "42" {
