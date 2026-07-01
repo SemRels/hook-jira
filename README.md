@@ -1,6 +1,6 @@
 # hook-jira
 
-[![Latest Release](https://img.shields.io/github/v/release/SemRels/hook-jira?label=version\&color=blue)](https://github.com/SemRels/hook-jira/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/SemRels/hook-jira?label=version&color=blue)](https://github.com/SemRels/hook-jira/releases/latest)
 
 Creates or updates Jira release metadata for the semrel version being published.
 
