@@ -50,13 +50,17 @@ func TestCreateVersionSuccess(t *testing.T) {
 	mux.HandleFunc("/rest/api/3/project/PROJ", func(w http.ResponseWriter, r *http.Request) {
 		expectAuth(t, r)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{"id": "10001"})
+		if err := json.NewEncoder(w).Encode(map[string]any{"id": "10001"}); err != nil {
+			t.Errorf("encode project response: %v", err)
+		}
 	})
 	mux.HandleFunc("/rest/api/3/version", func(w http.ResponseWriter, r *http.Request) {
 		expectAuth(t, r)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]any{"id": "20001", "name": "v1.0.0"})
+		if err := json.NewEncoder(w).Encode(map[string]any{"id": "20001", "name": "v1.0.0"}); err != nil {
+			t.Errorf("encode version response: %v", err)
+		}
 	})
 	client := newTestClient(t, mux)
 
@@ -66,6 +70,22 @@ func TestCreateVersionSuccess(t *testing.T) {
 	}
 	if version.ID != "20001" || version.Name != "v1.0.0" {
 		t.Fatalf("unexpected version: %+v", version)
+	}
+}
+
+func TestCreateVersionInvalidProjectID(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/rest/api/3/project/PROJ", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]any{"id": "not-a-number"}); err != nil {
+			t.Errorf("encode project response: %v", err)
+		}
+	})
+	client := newTestClient(t, mux)
+
+	_, err := client.CreateVersion(context.Background(), "PROJ", "v1.0.0", "")
+	if err == nil || !strings.Contains(err.Error(), "parse project id") {
+		t.Fatalf("expected project ID parse error, got %v", err)
 	}
 }
 
@@ -120,7 +140,9 @@ func TestTransitionIssueSuccess(t *testing.T) {
 		case http.MethodGet:
 			expectAuth(t, r)
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"transitions": []map[string]any{{"id": "31", "name": "Done"}}})
+			if err := json.NewEncoder(w).Encode(map[string]any{"transitions": []map[string]any{{"id": "31", "name": "Done"}}}); err != nil {
+				t.Errorf("encode transitions response: %v", err)
+			}
 		case http.MethodPost:
 			expectAuth(t, r)
 			w.WriteHeader(http.StatusNoContent)
@@ -140,7 +162,9 @@ func TestTransitionIssueNotFound(t *testing.T) {
 	mux.HandleFunc("/rest/api/3/issue/PROJ-123/transitions", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"transitions": []map[string]any{{"id": "11", "name": "To Do"}}})
+			if err := json.NewEncoder(w).Encode(map[string]any{"transitions": []map[string]any{{"id": "11", "name": "To Do"}}}); err != nil {
+				t.Errorf("encode transitions response: %v", err)
+			}
 		}
 	})
 	client := newTestClient(t, mux)
@@ -157,7 +181,9 @@ func TestTransitionIssueAPIError(t *testing.T) {
 		switch r.Method {
 		case http.MethodGet:
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{"transitions": []map[string]any{{"id": "31", "name": "Done"}}})
+			if err := json.NewEncoder(w).Encode(map[string]any{"transitions": []map[string]any{{"id": "31", "name": "Done"}}}); err != nil {
+				t.Errorf("encode transitions response: %v", err)
+			}
 		case http.MethodPost:
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = w.Write([]byte("forbidden"))
