@@ -101,7 +101,9 @@ func (c *Client) CreateVersion(ctx context.Context, projectKey, name, descriptio
 	if err != nil {
 		return nil, fmt.Errorf("jira: create version: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= 300 {
 		return nil, c.apiError("create version", resp)
@@ -138,7 +140,9 @@ func (c *Client) ReleaseVersion(ctx context.Context, versionID string) error {
 	if err != nil {
 		return fmt.Errorf("jira: release version: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= 300 {
 		return c.apiError("release version", resp)
@@ -173,7 +177,9 @@ func (c *Client) TransitionIssue(ctx context.Context, issueKey, transitionName s
 	if err != nil {
 		return fmt.Errorf("jira: transition issue: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= 300 {
 		return c.apiError("transition issue", resp)
@@ -210,7 +216,9 @@ func (c *Client) getProjectID(ctx context.Context, projectKey string) (int, erro
 	if err != nil {
 		return 0, fmt.Errorf("jira: get project: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= 300 {
 		return 0, c.apiError("get project", resp)
@@ -224,7 +232,9 @@ func (c *Client) getProjectID(ctx context.Context, projectKey string) (int, erro
 	}
 
 	var id int
-	fmt.Sscanf(project.ID, "%d", &id)
+	if _, err := fmt.Sscanf(project.ID, "%d", &id); err != nil {
+		return 0, fmt.Errorf("jira: parse project id: %w", err)
+	}
 	return id, nil
 }
 
@@ -241,7 +251,9 @@ func (c *Client) getTransitionID(ctx context.Context, issueKey, transitionName s
 	if err != nil {
 		return "", fmt.Errorf("jira: get transitions: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= 300 {
 		return "", c.apiError("get transitions", resp)
