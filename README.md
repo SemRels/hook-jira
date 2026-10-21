@@ -1,6 +1,10 @@
 # hook-jira
 
 [![Latest Release](https://img.shields.io/github/v/release/SemRels/hook-jira?label=version&color=blue)](https://github.com/SemRels/hook-jira/releases/latest)
+[![CI](https://github.com/SemRels/hook-jira/actions/workflows/ci.yml/badge.svg)](https://github.com/SemRels/hook-jira/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/SemRels/hook-jira)](LICENSE)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/SemRels/hook-jira/badge)](https://scorecard.dev/viewer/?uri=github.com/SemRels/hook-jira)
+[![REUSE status](https://api.reuse.software/badge/github.com/SemRels/hook-jira)](https://api.reuse.software/info/github.com/SemRels/hook-jira)
 
 Creates or updates Jira release metadata for the semrel version being published.
 
