@@ -39,23 +39,25 @@ cosign verify ghcr.io/semrels/hook-jira:latest \
 
 ```yaml
 plugins:
-  - name: hook-jira
-    path: ~/.semrel/plugins/semrel-plugin-hook-jira
-    env:
-      SEMREL_PLUGIN_BASE_URL: "https://jira.example.com"
-      SEMREL_PLUGIN_TOKEN: "${JIRA_TOKEN}"
-      SEMREL_PLUGIN_PROJECT: "REL"
-      SEMREL_PLUGIN_FIX_VERSION_TEMPLATE: "{{ .Version }}"
+  - uses: "@semrel/hook-jira"
+    phase: release
+    args:
+      base_url: "https://jira.example.com"
+      token: "${JIRA_TOKEN}"
+      project: "REL"
+      fix_version_template: "{{ .Version }}"
 ```
 
-## `SEMREL_PLUGIN_*` variables
+## Options
 
-| Name | Required | Description | Default |
-| --- | --- | --- | --- |
-| `SEMREL_PLUGIN_BASE_URL` | Required | Base URL of the Jira instance. | None |
-| `SEMREL_PLUGIN_TOKEN` | Required | Jira API token. | None |
-| `SEMREL_PLUGIN_PROJECT` | Required | Jira project key. | None |
-| `SEMREL_PLUGIN_FIX_VERSION_TEMPLATE` | Optional | Template used to generate the Jira fix version name. | Built-in template |
+Every option can be set as an entry under `args` in `.semrel.yaml`. semrel passes each entry to the plugin as the environment variable shown in the table, so you can also set that variable directly (for example in your CI environment) instead of using `args`.
+
+| Argument | Environment variable | Required | Description | Default |
+| --- | --- | --- | --- | --- |
+| `base_url` | `SEMREL_PLUGIN_BASE_URL` | Required | Base URL of the Jira instance. | None |
+| `token` | `SEMREL_PLUGIN_TOKEN` | Required | Jira API token. | None |
+| `project` | `SEMREL_PLUGIN_PROJECT` | Required | Jira project key. | None |
+| `fix_version_template` | `SEMREL_PLUGIN_FIX_VERSION_TEMPLATE` | Optional | Template used to generate the Jira fix version name. | Built-in template |
 
 ## `SEMREL_*` release context used
 
