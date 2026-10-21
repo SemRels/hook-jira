@@ -26,7 +26,7 @@ Images are signed with [cosign](https://github.com/sigstore/cosign) and include 
 
 ```bash
 cosign verify ghcr.io/semrels/hook-jira:latest \
-  --certificate-identity-regexp 'https://github.com/SemRels/hook-jira/.github/workflows/release.yml.*' \
+  --certificate-identity-regexp 'https://github.com/SemRels/hook-jira/.github/workflows/container.yml.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
