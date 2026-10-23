@@ -4,6 +4,7 @@
   "title": "hook-jira plugin configuration",
   "description": "Schema v1 for the hook-jira semrel plugin. Configure via SEMREL_* environment variables.",
   "type": "object",
+  "x-semrel-dry-run": true,
   "properties": {
     "SEMREL_PLUGIN_BASE_URL": {
       "type": "string",
